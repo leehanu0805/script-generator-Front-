@@ -1218,9 +1218,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         hoveredPopup,
         setHoveredPopup,
     }: any) => {
-        const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(
-            null
-        )
+        const [hoverTimeout, setHoverTimeout] = useState<number | null>(null)
 
         useEffect(() => {
             return () => {
@@ -1685,7 +1683,6 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         display: "flex",
                         flexDirection: "column",
                         gap: "16px",
-                        minHeight: "600px",
                         height: "100%",
                     }}
                 >
@@ -1773,8 +1770,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     <div
                         style={{
                             flex: "1 1 auto",
-                            minHeight: "250px",
-                            height: "350px",
+                            minHeight: "200px",
                             position: "relative",
                             overflow: "hidden",
                             borderRadius: "12px",
@@ -2242,36 +2238,12 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         return null
     }
 
-    const getContainerHeight = () => {
-        if (!isExpanded) return "64px"
-        if (currentStep === (3.5 as any)) return "920px"
-
-        if (currentStep === 4) {
-            if (isEditMode) return "850px"
-            if (!apiResults) return "760px"
-
-            let baseHeight = 760
-            if (scoreData) baseHeight += 200
-            if (apiResults && typeof apiResults === "object") {
-                const hasExtras =
-                    apiResults.transitions?.length ||
-                    apiResults.bRoll?.length ||
-                    apiResults.textOverlays?.length ||
-                    apiResults.soundEffects?.length
-                if (hasExtras) baseHeight += 100
-            }
-            return `${Math.min(baseHeight, window.innerHeight * 0.95)}px`
-        }
-
-        return "820px"
-    }
-
     if (isStatic) {
         return (
             <div
                 style={{
-                    width: "600px",
-                    height: "820px",
+                    width: "100%",
+                    height: "100%",
                     backgroundColor,
                     padding: "20px",
                     borderRadius: "14px",
@@ -2316,7 +2288,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     </div>
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, overflow: "auto" }}>
                     <div
                         style={{
                             ...headingFont,
@@ -2442,8 +2414,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     return (
         <div
             style={{
-                width: isExpanded ? "600px" : "610px",
-                height: getContainerHeight(),
+                width: isExpanded ? "100%" : "610px",
+                height: isExpanded ? "100%" : "64px",
                 backgroundColor: isExpanded ? backgroundColor : "#000000",
                 borderRadius: "14px",
                 boxShadow: isExpanded
@@ -2562,7 +2534,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             padding: "20px",
                             display: "flex",
                             flexDirection: "column",
-                            overflow: currentStep === 4 ? "auto" : "hidden",
+                            overflow: "hidden",
                         }}
                     >
                         <motion.button
@@ -2609,7 +2581,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             </svg>
                         </motion.button>
 
-                        <div style={{ marginBottom: "18px" }}>
+                        <div style={{ marginBottom: "18px", flexShrink: 0 }}>
                             <div
                                 style={{
                                     display: "flex",
@@ -2706,10 +2678,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
                         <div
                             style={{
-                                flex: currentStep === 4 ? "initial" : 1,
-                                position:
-                                    currentStep === 4 ? "static" : "relative",
+                                flex: 1,
+                                position: "relative",
                                 overflow: "hidden",
+                                minHeight: 0,
                             }}
                         >
                             <AnimatePresence mode="wait">
@@ -3214,6 +3186,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             cursor: "pointer",
                                                             transition:
                                                                 "all 0.2s ease",
+                                                            position:
+                                                                "relative",
                                                         }}
                                                         role="radio"
                                                         aria-checked={
@@ -3243,9 +3217,39 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     "16px",
                                                                 marginBottom:
                                                                     "6px",
+                                                                display: "flex",
+                                                                alignItems:
+                                                                    "center",
+                                                                gap: "8px",
                                                             }}
                                                         >
                                                             Complete Package
+                                                            <span
+                                                                style={{
+                                                                    display:
+                                                                        "inline-flex",
+                                                                    alignItems:
+                                                                        "center",
+                                                                    justifyContent:
+                                                                        "center",
+                                                                    padding:
+                                                                        "3px 8px",
+                                                                    background: `${primaryColor}18`,
+                                                                    color: primaryColor,
+                                                                    fontSize:
+                                                                        "10px",
+                                                                    fontWeight: 800,
+                                                                    borderRadius:
+                                                                        "4px",
+                                                                    letterSpacing:
+                                                                        "0.5px",
+                                                                    border: `1px solid ${primaryColor}35`,
+                                                                    textTransform:
+                                                                        "uppercase" as const,
+                                                                }}
+                                                            >
+                                                                BETA
+                                                            </span>
                                                         </div>
                                                         <div
                                                             style={{
@@ -3586,15 +3590,21 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                         variants={pageVariants}
                                         transition={pageTransition}
                                         style={{
-                                            position: "relative",
+                                            position: "absolute",
                                             width: "100%",
                                             height: "100%",
                                             display: "flex",
                                             flexDirection: "column",
+                                            overflow: "hidden",
                                         }}
                                     >
                                         {/* Header */}
-                                        <div style={{ marginBottom: "16px" }}>
+                                        <div
+                                            style={{
+                                                marginBottom: "16px",
+                                                flexShrink: 0,
+                                            }}
+                                        >
                                             <div
                                                 style={{
                                                     ...headingFont,
@@ -3639,6 +3649,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     background: `linear-gradient(135deg, ${primaryColor}08 0%, ${primaryColor}03 100%)`,
                                                     borderRadius: "10px",
                                                     border: `1px solid ${primaryColor}15`,
+                                                    flexShrink: 0,
                                                 }}
                                             >
                                                 <div
@@ -3722,7 +3733,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             ref={chatScrollRef}
                                             style={{
                                                 flex: 1,
-                                                minHeight: "500px",
+                                                minHeight: 0,
                                                 overflowY: "auto",
                                                 marginBottom: "14px",
                                                 padding: "18px",
@@ -4092,6 +4103,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                 border: `1.5px solid ${accentColor}`,
                                                 boxShadow:
                                                     "0 -2px 12px rgba(0,0,0,0.06)",
+                                                flexShrink: 0,
                                             }}
                                         >
                                             <div
@@ -4448,9 +4460,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                         variants={pageVariants}
                                         transition={pageTransition}
                                         style={{
-                                            position: "relative",
+                                            position: "absolute",
                                             width: "100%",
-                                            height: "auto",
+                                            height: "100%",
+                                            overflow: "auto",
                                         }}
                                     >
                                         <div
@@ -4510,7 +4523,6 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                 borderRadius: "12px",
                                                 border: `1.5px solid ${accentColor}`,
                                                 minHeight: "230px",
-                                                height: "auto",
                                                 marginBottom: "18px",
                                             }}
                                             role="region"
@@ -4958,7 +4970,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         e.currentTarget.style.boxShadow = `0 4px 16px ${primaryColor}45`
                                                     }}
                                                     onMouseLeave={(e) => {
-                                                        e.currentTarget.style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`
+                                                        e.currentTarget.style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%))`
                                                         e.currentTarget.style.boxShadow = `0 2px 10px ${primaryColor}35`
                                                     }}
                                                     aria-label="Enhance script with AI"
@@ -5069,6 +5081,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     marginTop: "18px",
                                     paddingTop: "14px",
                                     borderTop: `1px solid ${accentColor}`,
+                                    flexShrink: 0,
                                 }}
                             >
                                 <motion.button
