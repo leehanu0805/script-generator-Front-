@@ -3827,7 +3827,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             marginTop: "0.5rem",
                                                             padding:
                                                                 "0.5rem 0.75rem",
-                                                            backgroundColor: `${textColor}10`,
+                                                            backgroundColor: `${textColor}35`,
                                                             border: `1.5px solid ${accentColor}`,
                                                             borderRadius:
                                                                 "0.5rem",
@@ -5623,7 +5623,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             onMouseEnter={(
                                                                 e
                                                             ) => {
-                                                                e.currentTarget.style.backgroundColor = `${textColor}18`
+                                                                e.currentTarget.style.backgroundColor = `${textColor}30`
                                                                 e.currentTarget.style.borderColor =
                                                                     textColor
                                                             }}
@@ -5751,7 +5751,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
@@ -5810,7 +5810,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
@@ -5882,7 +5882,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
