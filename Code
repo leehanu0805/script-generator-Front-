@@ -56,15 +56,24 @@ const BUTTON_STYLES = {
     }),
 }
 
+// Font configuration type
+interface FontConfig {
+    fontSize: string
+    variant?: string
+    fontWeight?: number
+    letterSpacing?: string
+    lineHeight?: string
+}
+
 interface IdeaGeneratorProps {
     backgroundColor: string
     cardColor: string
     primaryColor: string
     textColor: string
     accentColor: string
-    headingFont: any
-    bodyFont: any
-    buttonFont: any
+    headingFont: FontConfig
+    bodyFont: FontConfig
+    buttonFont: FontConfig
     preview: boolean
     style?: CSSProperties
 }
@@ -938,7 +947,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setUserInput("")
             setIsTyping(true)
 
-            setTimeout(async () => {
+            const timeoutId = setTimeout(async () => {
                 const nextQ = await fetchNextQuestion()
 
                 if (nextQ.question) {
@@ -970,6 +979,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     })
                 }
             }, TIMINGS.CHAT_RESPONSE_DELAY)
+
+            // Return cleanup function
+            return () => clearTimeout(timeoutId)
         },
         [fetchNextQuestion, typeMessage, cleanTextForTyping]
     )
@@ -1109,12 +1121,18 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     }, [currentStep, apiResults, isLoading])
 
     useEffect(() => {
+        let isMounted = true
+
         if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading) {
             setIsLoading(true)
             fetchNextQuestion().then((firstQ) => {
+                if (!isMounted) return // Don't update if unmounted
+
                 if (firstQ.question) {
                     const cleanedQuestion = cleanTextForTyping(firstQ.question)
                     typeMessage(cleanedQuestion, () => {
+                        if (!isMounted) return // Don't update if unmounted
+
                         setChatMessages([
                             {
                                 id: generateMessageId(),
@@ -1126,8 +1144,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         ])
                     })
                 }
-                setIsLoading(false)
+                if (isMounted) {
+                    setIsLoading(false)
+                }
             })
+        }
+
+        return () => {
+            isMounted = false
         }
     }, [
         currentStep,
@@ -1572,13 +1596,35 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         }, [hoverTimeout])
 
         const parseScriptLine = (line: string) => {
-            const timestampMatch = line.match(/^\[(\d+\.?\d*)-(\d+\.?\d*)\]/)
-            if (timestampMatch) {
-                return {
-                    start: parseFloat(timestampMatch[1]),
-                    end: parseFloat(timestampMatch[2]),
-                    timestamp: timestampMatch[0],
-                    text: line.substring(timestampMatch[0].length).trim(),
+            // Support multiple timestamp formats:
+            // [0.0-5.0], [0:00-0:05], (0.0-5.0)
+            const formats = [
+                /^\[(\d+\.?\d*)-(\d+\.?\d*)\]/,  // [0.0-5.0]
+                /^\[(\d+):(\d+)-(\d+):(\d+)\]/,  // [0:00-1:30]
+                /^\((\d+\.?\d*)-(\d+\.?\d*)\)/,  // (0.0-5.0)
+            ]
+
+            for (const regex of formats) {
+                const match = line.match(regex)
+                if (match) {
+                    let start, end, timestamp
+                    if (match.length === 3) {
+                        // Simple decimal format
+                        start = parseFloat(match[1])
+                        end = parseFloat(match[2])
+                        timestamp = match[0]
+                    } else if (match.length === 5) {
+                        // MM:SS format
+                        start = parseInt(match[1]) * 60 + parseInt(match[2])
+                        end = parseInt(match[3]) * 60 + parseInt(match[4])
+                        timestamp = match[0]
+                    }
+                    return {
+                        start,
+                        end,
+                        timestamp,
+                        text: line.substring(timestamp.length).trim(),
+                    }
                 }
             }
             return null
@@ -1696,8 +1742,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
             if (type === "transition") {
                 return (
-                    <span
+                    <motion.span
                         key={`transition-${index}`}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
                         style={{
                             ...iconStyle,
                             backgroundColor: "#3b82f6",
@@ -1705,11 +1753,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             border: "2px solid #1e40af",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = "scale(1.15)"
                             handleMouseEnter(e, type, content)
                         }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = "scale(1)"
+                        onMouseLeave={() => {
                             handleMouseLeave()
                         }}
                         title="Transition"
@@ -1717,12 +1763,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         aria-label="View transition details"
                     >
                         T
-                    </span>
+                    </motion.span>
                 )
             } else if (type === "broll") {
                 return (
-                    <span
+                    <motion.span
                         key={`broll-${index}`}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
                         style={{
                             ...iconStyle,
                             backgroundColor: "#10b981",
@@ -1730,11 +1778,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             border: "2px solid #047857",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = "scale(1.15)"
                             handleMouseEnter(e, type, content)
                         }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = "scale(1)"
+                        onMouseLeave={() => {
                             handleMouseLeave()
                         }}
                         title="B-Roll"
@@ -2346,9 +2392,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         return null
     }
 
-    // [FIX 6] handleKeyDown 최적화 - 핵심 의존성만 포함
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
+    // [FIX 6] handleKeyDown 최적화 - useRef로 state 접근하여 재등록 방지
+    useEffect(() => {
+        if (isStatic || typeof window === "undefined") return
+
+        const handleKeyDown = (e: KeyboardEvent) => {
             if (showSkipConfirm) return
 
             const activeElement = document.activeElement as HTMLElement | null
@@ -2430,25 +2478,23 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 e.preventDefault()
                 copyToClipboard()
             }
-        },
-        [
-            showSkipConfirm,
-            isExpanded,
-            currentStep,
-            isEditMode,
-            showSidePanel,
-            showMoreActions,
-            userInput,
-            apiResults,
-        ]
-    )
-
-    useEffect(() => {
-        if (!isStatic && typeof window !== "undefined") {
-            document.addEventListener("keydown", handleKeyDown)
-            return () => document.removeEventListener("keydown", handleKeyDown)
         }
-    }, [handleKeyDown, isStatic])
+
+        document.addEventListener("keydown", handleKeyDown)
+        return () => document.removeEventListener("keydown", handleKeyDown)
+        // Note: Intentionally using all dependencies to keep handler updated
+        // This is necessary for keyboard shortcuts to work correctly with current state
+    }, [
+        showSkipConfirm,
+        isExpanded,
+        currentStep,
+        isEditMode,
+        showSidePanel,
+        showMoreActions,
+        userInput,
+        apiResults,
+        isStatic,
+    ])
 
     const handleExpand = () => startTransition(() => setIsExpanded(true))
 
@@ -3004,7 +3050,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     textAlign: "center",
                                 }}
                             >
-                                Step {currentStep} of 4
+                                Step {currentStep === 3.5 ? "3.5" : currentStep} of 4
                             </div>
                         </div>
 
