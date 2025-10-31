@@ -1208,17 +1208,17 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         if (!scores) return null
 
         const getScoreColor = (score: number) => {
-            if (score >= 80) return "#10b981"
-            if (score >= 60) return "#f59e0b"
-            return "#ef4444"
+            if (score >= 80) return primaryColor
+            if (score >= 60) return accentColor
+            return textColor
         }
 
         const getScoreGradient = (score: number) => {
             if (score >= 80)
-                return "linear-gradient(135deg, #10b981 0%, #34d399 100%)"
+                return `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`
             if (score >= 60)
-                return "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)"
-            return "linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
+                return `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)`
+            return `linear-gradient(135deg, ${textColor}60 0%, ${textColor}80 100%)`
         }
 
         const getScoreLabel = (score: number) => {
@@ -2592,7 +2592,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             style={{
                 width: isExpanded ? "100%" : "min(38.125rem, 100%)",
                 height: isExpanded ? "100%" : "4rem",
-                backgroundColor: isExpanded ? backgroundColor : "#000000",
+                backgroundColor: isExpanded ? backgroundColor : cardColor,
                 borderRadius: "0.875rem",
                 boxShadow: isExpanded
                     ? "0 8px 32px rgba(0,0,0,0.15)"
@@ -2938,7 +2938,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -3028,7 +3028,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     fontSize:
                                                                         "0.9375rem",
                                                                     color: cardTextColor,
-                                                                    opacity: 0.75,
+                                                                    opacity: 0.9,
                                                                     lineHeight: 1.4,
                                                                 }}
                                                             >
@@ -3219,7 +3219,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -3341,7 +3341,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -4064,7 +4064,16 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     gap: "0.75rem",
                                                 }}
                                             >
-                                                {[1, 2, 3].map((step) => {
+                                                {Array.from({
+                                                    length: Math.max(
+                                                        3,
+                                                        chatMessages.filter(
+                                                            (m) =>
+                                                                m.type === "ai"
+                                                        ).length
+                                                    ),
+                                                }).map((_, index) => {
+                                                    const step = index + 1
                                                     const userAnswers =
                                                         chatMessages.filter(
                                                             (m) =>
@@ -4133,7 +4142,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 }
                                                                 aria-valuemax={
-                                                                    3
+                                                                    Math.max(
+                                                                        3,
+                                                                        chatMessages.filter(
+                                                                            (m) =>
+                                                                                m.type ===
+                                                                                "ai"
+                                                                        ).length
+                                                                    )
                                                                 }
                                                             >
                                                                 {isComplete ? (
@@ -4155,7 +4171,15 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 )}
                                                             </motion.div>
-                                                            {step < 3 && (
+                                                            {step <
+                                                                Math.max(
+                                                                    3,
+                                                                    chatMessages.filter(
+                                                                        (m) =>
+                                                                            m.type ===
+                                                                            "ai"
+                                                                    ).length
+                                                                ) && (
                                                                 <div
                                                                     style={{
                                                                         width: "2px",
@@ -4225,7 +4249,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     style={{
                                                         ...bodyFont,
                                                         color: textColor,
-                                                        opacity: 0.7,
+                                                        opacity: 0.9,
                                                         fontSize: "0.875rem",
                                                     }}
                                                 >
@@ -5125,7 +5149,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -5201,7 +5225,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 }}
                                                                 style={{
                                                                     height: "1rem",
-                                                                    backgroundColor: `${textColor}15`,
+                                                                    backgroundColor: `${textColor}30`,
                                                                     borderRadius:
                                                                         "0.5rem",
                                                                     width: `${100 - i * 10}%`,
@@ -5532,9 +5556,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             ...(copySuccess
                                                                 ? {
                                                                       backgroundColor:
-                                                                          "#10b981",
-                                                                      border: "1.5px solid #10b981",
-                                                                      color: "#ffffff",
+                                                                          accentColor,
+                                                                      border: `1.5px solid ${accentColor}`,
+                                                                      color: getReadableTextOn(accentColor),
                                                                   }
                                                                 : BUTTON_STYLES.primary(
                                                                       primaryColor,
@@ -5551,7 +5575,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             fontWeight: 700,
                                                             boxShadow:
                                                                 copySuccess
-                                                                    ? "0 4px 16px #10b98145"
+                                                                    ? `0 4px 16px ${accentColor}45`
                                                                     : `0 4px 16px ${primaryColor}40`,
                                                             overflow: "hidden",
                                                             flex:
