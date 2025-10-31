@@ -8,8 +8,7 @@ import {
     useMemo,
     type CSSProperties,
 } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
+import { addPropertyControls, ControlType, useIsStaticRenderer, motion, AnimatePresence } from "framer"
 
 // Z-INDEX 체계화
 const Z_INDEX = {
