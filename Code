@@ -3827,8 +3827,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             marginTop: "0.5rem",
                                                             padding:
                                                                 "0.5rem 0.75rem",
-                                                            backgroundColor: `${textColor}35`,
-                                                            border: `1.5px solid ${accentColor}`,
+                                                            backgroundColor: cardColor,
+                                                            border: `2px solid ${accentColor}`,
                                                             borderRadius:
                                                                 "0.5rem",
                                                             color: textColor,
