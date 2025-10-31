@@ -20,6 +20,18 @@ const Z_INDEX = {
     CLOSE_BUTTON: 10,
 }
 
+// Timing constants
+const TIMINGS = {
+    CHAR_TYPING: 25,           // Character typing speed (ms)
+    CHAT_RESPONSE_DELAY: 800,  // Delay before AI response (ms)
+    STEP_TRANSITION: 1500,     // Step transition delay (ms)
+    CONFETTI_DURATION: 3000,   // Confetti display time (ms)
+    LOADING_MSG_ROTATION: 3000,// Loading message rotation (ms)
+    FETCH_TIMEOUT: 60000,      // API fetch timeout (ms)
+    LONG_FETCH_TIMEOUT: 90000, // Extended fetch timeout (ms)
+    PROGRESS_UPDATE: 500,      // Progress bar update interval (ms)
+}
+
 // [FIX 9] 버튼 공통 스타일 상수
 const BUTTON_STYLES = {
     base: {
@@ -588,7 +600,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 if (index < cleanText.length) {
                     setTypingText((prev) => prev + cleanText[index])
                     index++
-                    typingTimeoutRef.current = window.setTimeout(type, 25)
+                    typingTimeoutRef.current = window.setTimeout(
+                        type,
+                        TIMINGS.CHAR_TYPING
+                    )
                 } else {
                     setIsTyping(false)
                     typingTimeoutRef.current = null
@@ -637,7 +652,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
         try {
             const controller = new AbortController()
-            const timer = setTimeout(() => controller.abort(), 60000)
+            const timer = setTimeout(
+                () => controller.abort(),
+                TIMINGS.FETCH_TIMEOUT
+            )
 
             const res = await fetchWithRetry(
                 "https://scripto-api.vercel.app/api/generate-content",
@@ -903,10 +921,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 timestamp: Date.now(),
                             },
                         ])
-                        setTimeout(() => setCurrentStep(4), 1500)
+                        setTimeout(() => setCurrentStep(4), TIMINGS.STEP_TRANSITION)
                     })
                 }
-            }, 800)
+            }, TIMINGS.CHAT_RESPONSE_DELAY)
         },
         [fetchNextQuestion, typeMessage, cleanTextForTyping]
     )
@@ -1080,7 +1098,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setTimeout(() => {
                 setShowConfetti(false)
                 setCopySuccess(false)
-            }, 3000)
+            }, TIMINGS.CONFETTI_DURATION)
         }
     }, [copySuccess])
 
