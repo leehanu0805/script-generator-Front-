@@ -20,6 +20,18 @@ const Z_INDEX = {
     CLOSE_BUTTON: 10,
 }
 
+// Timing constants
+const TIMINGS = {
+    CHAR_TYPING: 25,           // Character typing speed (ms)
+    CHAT_RESPONSE_DELAY: 800,  // Delay before AI response (ms)
+    STEP_TRANSITION: 1500,     // Step transition delay (ms)
+    CONFETTI_DURATION: 3000,   // Confetti display time (ms)
+    LOADING_MSG_ROTATION: 3000,// Loading message rotation (ms)
+    FETCH_TIMEOUT: 60000,      // API fetch timeout (ms)
+    LONG_FETCH_TIMEOUT: 90000, // Extended fetch timeout (ms)
+    PROGRESS_UPDATE: 500,      // Progress bar update interval (ms)
+}
+
 // [FIX 9] 버튼 공통 스타일 상수
 const BUTTON_STYLES = {
     base: {
@@ -588,7 +600,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 if (index < cleanText.length) {
                     setTypingText((prev) => prev + cleanText[index])
                     index++
-                    typingTimeoutRef.current = window.setTimeout(type, 25)
+                    typingTimeoutRef.current = window.setTimeout(
+                        type,
+                        TIMINGS.CHAR_TYPING
+                    )
                 } else {
                     setIsTyping(false)
                     typingTimeoutRef.current = null
@@ -637,7 +652,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
         try {
             const controller = new AbortController()
-            const timer = setTimeout(() => controller.abort(), 60000)
+            const timer = setTimeout(
+                () => controller.abort(),
+                TIMINGS.FETCH_TIMEOUT
+            )
 
             const res = await fetchWithRetry(
                 "https://scripto-api.vercel.app/api/generate-content",
@@ -879,13 +897,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 const nextQ = await fetchNextQuestion()
 
                 if (nextQ.question) {
-                    typeMessage(nextQ.question, () => {
+                    const cleanedQuestion = cleanTextForTyping(nextQ.question)
+                    typeMessage(cleanedQuestion, () => {
                         setChatMessages((prev) => [
                             ...prev,
                             {
                                 id: (Date.now() + 1).toString(),
                                 type: "ai",
-                                content: nextQ.question,
+                                content: cleanedQuestion,
                                 options: nextQ.options || [],
                                 timestamp: Date.now(),
                             },
@@ -902,12 +921,12 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 timestamp: Date.now(),
                             },
                         ])
-                        setTimeout(() => setCurrentStep(4), 1500)
+                        setTimeout(() => setCurrentStep(4), TIMINGS.STEP_TRANSITION)
                     })
                 }
-            }, 800)
+            }, TIMINGS.CHAT_RESPONSE_DELAY)
         },
-        [fetchNextQuestion, typeMessage]
+        [fetchNextQuestion, typeMessage, cleanTextForTyping]
     )
 
     const handleSkipRefinement = useCallback(() => {
@@ -1036,12 +1055,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setIsLoading(true)
             fetchNextQuestion().then((firstQ) => {
                 if (firstQ.question) {
-                    typeMessage(firstQ.question, () => {
+                    const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                    typeMessage(cleanedQuestion, () => {
                         setChatMessages([
                             {
                                 id: Date.now().toString(),
                                 type: "ai",
-                                content: firstQ.question,
+                                content: cleanedQuestion,
                                 options: firstQ.options || [],
                                 timestamp: Date.now(),
                             },
@@ -1057,6 +1077,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         isLoading,
         fetchNextQuestion,
         typeMessage,
+        cleanTextForTyping,
     ])
 
     useEffect(() => {
@@ -1077,7 +1098,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setTimeout(() => {
                 setShowConfetti(false)
                 setCopySuccess(false)
-            }, 3000)
+            }, TIMINGS.CONFETTI_DURATION)
         }
     }, [copySuccess])
 
@@ -1205,17 +1226,17 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         if (!scores) return null
 
         const getScoreColor = (score: number) => {
-            if (score >= 80) return "#10b981"
-            if (score >= 60) return "#f59e0b"
-            return "#ef4444"
+            if (score >= 80) return primaryColor
+            if (score >= 60) return accentColor
+            return textColor
         }
 
         const getScoreGradient = (score: number) => {
             if (score >= 80)
-                return "linear-gradient(135deg, #10b981 0%, #34d399 100%)"
+                return `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`
             if (score >= 60)
-                return "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)"
-            return "linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
+                return `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)`
+            return `linear-gradient(135deg, ${textColor}60 0%, ${textColor}80 100%)`
         }
 
         const getScoreLabel = (score: number) => {
@@ -1286,7 +1307,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     ...bodyFont,
                                     fontSize: "0.8125rem",
                                     color: textColor,
-                                    opacity: 0.6,
+                                    opacity: 0.85,
                                 }}
                             >
                                 Quality Score
@@ -1955,7 +1976,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 fontSize: "0.875rem",
                                 lineHeight: 1.7,
                                 resize: "none",
-                                outline: "none",
+                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                 ...WORD_BREAK_STYLE,
                             }}
                             placeholder="Edit your script..."
@@ -2005,7 +2027,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     color: textColor,
                                     ...bodyFont,
                                     fontSize: "0.8125rem",
-                                    outline: "none",
+                                    outline: `2px solid ${primaryColor}`,
+                                    outlineOffset: "2px",
                                     ...WORD_BREAK_STYLE,
                                 }}
                                 aria-label="AI enhancement request"
@@ -2587,7 +2610,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             style={{
                 width: isExpanded ? "100%" : "min(38.125rem, 100%)",
                 height: isExpanded ? "100%" : "4rem",
-                backgroundColor: isExpanded ? backgroundColor : "#000000",
+                backgroundColor: isExpanded ? backgroundColor : cardColor,
                 borderRadius: "0.875rem",
                 boxShadow: isExpanded
                     ? "0 8px 32px rgba(0,0,0,0.15)"
@@ -2685,7 +2708,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 color: "#ffffff",
                                 ...bodyFont,
                                 fontSize: "1rem",
-                                outline: "none",
+                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                 transition: "all 0.2s ease",
                             }}
                             onFocus={(e) => {
@@ -2777,7 +2801,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 transition: "all 0.2s ease",
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${textColor}15`
+                                e.currentTarget.style.backgroundColor = `${textColor}30`
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor =
@@ -2932,7 +2956,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -3022,7 +3046,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     fontSize:
                                                                         "0.9375rem",
                                                                     color: cardTextColor,
-                                                                    opacity: 0.75,
+                                                                    opacity: 0.9,
                                                                     lineHeight: 1.4,
                                                                 }}
                                                             >
@@ -3171,7 +3195,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 ...bodyFont,
                                                                 fontSize:
                                                                     "0.9375rem",
-                                                                outline: "none",
+                                                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                             }}
                                                             aria-label="Custom style name"
                                                         />
@@ -3212,7 +3237,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -3281,7 +3306,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     color: textColor,
                                                     ...bodyFont,
                                                     fontSize: "1.0625rem",
-                                                    outline: "none",
+                                                    outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                     transition: "all 0.2s ease",
                                                     boxShadow: keyword
                                                         ? `0 0 0 3px ${primaryColor}18`
@@ -3333,7 +3359,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -3409,8 +3435,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         style={{
                                                             padding:
                                                                 "0.375rem 0.75rem",
-                                                            backgroundColor: `${textColor}10`,
-                                                            border: "none",
+                                                            backgroundColor: cardColor,
+                                                            border: `1.5px solid ${accentColor}`,
                                                             borderRadius:
                                                                 "0.5rem",
                                                             color: textColor,
@@ -3553,8 +3579,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     borderRadius:
                                                                         "2.5px",
                                                                     background: `linear-gradient(to right, ${primaryColor} 0%, ${primaryColor} ${((scriptLength - 15) / (180 - 15)) * 100}%, ${accentColor} ${((scriptLength - 15) / (180 - 15)) * 100}%, ${accentColor} 100%)`,
-                                                                    outline:
-                                                                        "none",
+                                                                    outline: `2px solid ${primaryColor}`,
+                                                                    outlineOffset: "2px",
                                                                     appearance:
                                                                         "none",
                                                                     cursor: "pointer",
@@ -3723,8 +3749,6 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         gridTemplateColumns:
                                                             "repeat(3, 1fr)",
                                                         gap: "0.5rem",
-                                                        maxHeight: "15rem",
-                                                        overflowY: "auto",
                                                     }}
                                                 >
                                                     {languages.map((lang) => {
@@ -3827,8 +3851,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             marginTop: "0.5rem",
                                                             padding:
                                                                 "0.5rem 0.75rem",
-                                                            backgroundColor: `${textColor}10`,
-                                                            border: `1.5px solid ${accentColor}`,
+                                                            backgroundColor: cardColor,
+                                                            border: `2px solid ${accentColor}`,
                                                             borderRadius:
                                                                 "0.5rem",
                                                             color: textColor,
@@ -4058,7 +4082,16 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     gap: "0.75rem",
                                                 }}
                                             >
-                                                {[1, 2, 3].map((step) => {
+                                                {Array.from({
+                                                    length: Math.max(
+                                                        3,
+                                                        chatMessages.filter(
+                                                            (m) =>
+                                                                m.type === "ai"
+                                                        ).length
+                                                    ),
+                                                }).map((_, index) => {
+                                                    const step = index + 1
                                                     const userAnswers =
                                                         chatMessages.filter(
                                                             (m) =>
@@ -4127,7 +4160,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 }
                                                                 aria-valuemax={
-                                                                    3
+                                                                    Math.max(
+                                                                        3,
+                                                                        chatMessages.filter(
+                                                                            (m) =>
+                                                                                m.type ===
+                                                                                "ai"
+                                                                        ).length
+                                                                    )
                                                                 }
                                                             >
                                                                 {isComplete ? (
@@ -4149,7 +4189,15 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 )}
                                                             </motion.div>
-                                                            {step < 3 && (
+                                                            {step <
+                                                                Math.max(
+                                                                    3,
+                                                                    chatMessages.filter(
+                                                                        (m) =>
+                                                                            m.type ===
+                                                                            "ai"
+                                                                    ).length
+                                                                ) && (
                                                                 <div
                                                                     style={{
                                                                         width: "2px",
@@ -4219,7 +4267,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     style={{
                                                         ...bodyFont,
                                                         color: textColor,
-                                                        opacity: 0.7,
+                                                        opacity: 0.9,
                                                         fontSize: "0.875rem",
                                                     }}
                                                 >
@@ -4242,8 +4290,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         right: 0,
                                                         padding:
                                                             "0.5rem 0.875rem",
-                                                        backgroundColor: `${textColor}08`,
-                                                        border: `1.5px solid ${textColor}25`,
+                                                        backgroundColor: cardColor,
+                                                        border: `2px solid ${accentColor}`,
                                                         borderRadius:
                                                             "0.625rem",
                                                         color: textColor,
@@ -4807,7 +4855,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             ...bodyFont,
                                                             fontSize:
                                                                 "0.9375rem",
-                                                            outline: "none",
+                                                            outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                             transition:
                                                                 "all 0.2s ease",
                                                             fontWeight: 500,
@@ -5118,7 +5167,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                             style={{
                                                 ...bodyFont,
                                                 color: textColor,
-                                                opacity: 0.75,
+                                                opacity: 0.95,
                                                 marginBottom: "1.125rem",
                                                 fontSize: "1rem",
                                             }}
@@ -5194,7 +5243,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 }}
                                                                 style={{
                                                                     height: "1rem",
-                                                                    backgroundColor: `${textColor}15`,
+                                                                    backgroundColor: `${textColor}30`,
                                                                     borderRadius:
                                                                         "0.5rem",
                                                                     width: `${100 - i * 10}%`,
@@ -5525,9 +5574,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             ...(copySuccess
                                                                 ? {
                                                                       backgroundColor:
-                                                                          "#10b981",
-                                                                      border: "1.5px solid #10b981",
-                                                                      color: "#ffffff",
+                                                                          accentColor,
+                                                                      border: `1.5px solid ${accentColor}`,
+                                                                      color: getReadableTextOn(accentColor),
                                                                   }
                                                                 : BUTTON_STYLES.primary(
                                                                       primaryColor,
@@ -5544,7 +5593,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             fontWeight: 700,
                                                             boxShadow:
                                                                 copySuccess
-                                                                    ? "0 4px 16px #10b98145"
+                                                                    ? `0 4px 16px ${accentColor}45`
                                                                     : `0 4px 16px ${primaryColor}40`,
                                                             overflow: "hidden",
                                                             flex:
@@ -5623,7 +5672,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             onMouseEnter={(
                                                                 e
                                                             ) => {
-                                                                e.currentTarget.style.backgroundColor = `${textColor}18`
+                                                                e.currentTarget.style.backgroundColor = `${textColor}30`
                                                                 e.currentTarget.style.borderColor =
                                                                     textColor
                                                             }}
@@ -5751,7 +5800,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
@@ -5810,7 +5859,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
@@ -5882,7 +5931,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                         onMouseEnter={(
                                                                             e
                                                                         ) => {
-                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}15`
+                                                                            e.currentTarget.style.backgroundColor = `${primaryColor}25`
                                                                         }}
                                                                         onMouseLeave={(
                                                                             e
