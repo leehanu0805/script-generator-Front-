@@ -905,7 +905,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 id: (Date.now() + 1).toString(),
                                 type: "ai",
                                 content: cleanedQuestion,
-                                options: nextQ.options || [],
+                                options: (nextQ.options || []).filter(opt => opt != null && opt !== ''),
                                 timestamp: Date.now(),
                             },
                         ])
@@ -1062,7 +1062,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 id: Date.now().toString(),
                                 type: "ai",
                                 content: cleanedQuestion,
-                                options: firstQ.options || [],
+                                options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
                                 timestamp: Date.now(),
                             },
                         ])
@@ -4647,7 +4647,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                                         "0.625rem",
                                                                                 }}
                                                                             >
-                                                                                {msg.options.map(
+                                                                                {msg.options?.filter(opt => opt != null && opt !== '').map(
                                                                                     (
                                                                                         opt
                                                                                     ) => (
