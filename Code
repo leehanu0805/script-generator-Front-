@@ -879,13 +879,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 const nextQ = await fetchNextQuestion()
 
                 if (nextQ.question) {
-                    typeMessage(nextQ.question, () => {
+                    const cleanedQuestion = cleanTextForTyping(nextQ.question)
+                    typeMessage(cleanedQuestion, () => {
                         setChatMessages((prev) => [
                             ...prev,
                             {
                                 id: (Date.now() + 1).toString(),
                                 type: "ai",
-                                content: nextQ.question,
+                                content: cleanedQuestion,
                                 options: nextQ.options || [],
                                 timestamp: Date.now(),
                             },
@@ -907,7 +908,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 }
             }, 800)
         },
-        [fetchNextQuestion, typeMessage]
+        [fetchNextQuestion, typeMessage, cleanTextForTyping]
     )
 
     const handleSkipRefinement = useCallback(() => {
@@ -1036,12 +1037,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setIsLoading(true)
             fetchNextQuestion().then((firstQ) => {
                 if (firstQ.question) {
-                    typeMessage(firstQ.question, () => {
+                    const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                    typeMessage(cleanedQuestion, () => {
                         setChatMessages([
                             {
                                 id: Date.now().toString(),
                                 type: "ai",
-                                content: firstQ.question,
+                                content: cleanedQuestion,
                                 options: firstQ.options || [],
                                 timestamp: Date.now(),
                             },
@@ -1057,6 +1059,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         isLoading,
         fetchNextQuestion,
         typeMessage,
+        cleanTextForTyping,
     ])
 
     useEffect(() => {
@@ -1286,7 +1289,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     ...bodyFont,
                                     fontSize: "0.8125rem",
                                     color: textColor,
-                                    opacity: 0.6,
+                                    opacity: 0.85,
                                 }}
                             >
                                 Quality Score
@@ -1955,7 +1958,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 fontSize: "0.875rem",
                                 lineHeight: 1.7,
                                 resize: "none",
-                                outline: "none",
+                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                 ...WORD_BREAK_STYLE,
                             }}
                             placeholder="Edit your script..."
@@ -2005,7 +2009,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     color: textColor,
                                     ...bodyFont,
                                     fontSize: "0.8125rem",
-                                    outline: "none",
+                                    outline: `2px solid ${primaryColor}`,
+                                    outlineOffset: "2px",
                                     ...WORD_BREAK_STYLE,
                                 }}
                                 aria-label="AI enhancement request"
@@ -2685,7 +2690,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 color: "#ffffff",
                                 ...bodyFont,
                                 fontSize: "1rem",
-                                outline: "none",
+                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                 transition: "all 0.2s ease",
                             }}
                             onFocus={(e) => {
@@ -3171,7 +3177,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 ...bodyFont,
                                                                 fontSize:
                                                                     "0.9375rem",
-                                                                outline: "none",
+                                                                outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                             }}
                                                             aria-label="Custom style name"
                                                         />
@@ -3281,7 +3288,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     color: textColor,
                                                     ...bodyFont,
                                                     fontSize: "1.0625rem",
-                                                    outline: "none",
+                                                    outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                     transition: "all 0.2s ease",
                                                     boxShadow: keyword
                                                         ? `0 0 0 3px ${primaryColor}18`
@@ -3553,8 +3561,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     borderRadius:
                                                                         "2.5px",
                                                                     background: `linear-gradient(to right, ${primaryColor} 0%, ${primaryColor} ${((scriptLength - 15) / (180 - 15)) * 100}%, ${accentColor} ${((scriptLength - 15) / (180 - 15)) * 100}%, ${accentColor} 100%)`,
-                                                                    outline:
-                                                                        "none",
+                                                                    outline: `2px solid ${primaryColor}`,
+                                                                    outlineOffset: "2px",
                                                                     appearance:
                                                                         "none",
                                                                     cursor: "pointer",
@@ -4805,7 +4813,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             ...bodyFont,
                                                             fontSize:
                                                                 "0.9375rem",
-                                                            outline: "none",
+                                                            outline: `2px solid ${primaryColor}`,
+                                outlineOffset: "2px",
                                                             transition:
                                                                 "all 0.2s ease",
                                                             fontWeight: 500,
