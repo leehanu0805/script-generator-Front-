@@ -25,7 +25,7 @@ const TIMINGS = {
     CHAR_TYPING: 25,           // Character typing speed (ms)
     CHAT_RESPONSE_DELAY: 800,  // Delay before AI response (ms)
     STEP_TRANSITION: 1500,     // Step transition delay (ms)
-    CONFETTI_DURATION: 3000,   // Confetti display time (ms)
+    CONFETTI_DURATION: 1500,   // Confetti display time (ms) - reduced for better UX
     LOADING_MSG_ROTATION: 3000,// Loading message rotation (ms)
     FETCH_TIMEOUT: 60000,      // API fetch timeout (ms)
     LONG_FETCH_TIMEOUT: 90000, // Extended fetch timeout (ms)
@@ -51,9 +51,18 @@ const BUTTON_STYLES = {
     disabled: (textColor: string) => ({
         backgroundColor: "transparent",
         border: `2px solid ${textColor}25`,
-        color: `${textColor}40`,
+        color: `${textColor}60`,
         cursor: "not-allowed",
     }),
+}
+
+// Font configuration type
+interface FontConfig {
+    fontSize: string
+    variant?: string
+    fontWeight?: number
+    letterSpacing?: string
+    lineHeight?: string
 }
 
 interface IdeaGeneratorProps {
@@ -62,9 +71,9 @@ interface IdeaGeneratorProps {
     primaryColor: string
     textColor: string
     accentColor: string
-    headingFont: any
-    bodyFont: any
-    buttonFont: any
+    headingFont: FontConfig
+    bodyFont: FontConfig
+    buttonFont: FontConfig
     preview: boolean
     style?: CSSProperties
 }
@@ -131,6 +140,15 @@ interface ApiError {
 
 type Step = 1 | 2 | 3 | 3.5 | 4
 
+interface ModalConfig {
+    show: boolean
+    title: string
+    message: string
+    type: "alert" | "confirm"
+    onConfirm?: () => void
+    onCancel?: () => void
+}
+
 // Helper function: pick readable text color on a given background
 const getReadableTextOn = (hex: string) => {
     // 안전장치
@@ -166,8 +184,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         preview,
     } = props
 
-    // [FIX 1] window.innerWidth를 state로 관리
-    const [windowWidth, setWindowWidth] = useState(768)
+    // Window width state - initialized with actual value to avoid re-render
+    const [windowWidth, setWindowWidth] = useState(
+        typeof window !== "undefined" ? window.innerWidth : 768
+    )
 
     const [isExpanded, setIsExpanded] = useState(false)
     const [currentStep, setCurrentStep] = useState<Step>(1)
@@ -196,6 +216,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
     const [typingText, setTypingText] = useState("")
     const typingTimeoutRef = useRef<number | null>(null)
+
+    // Message ID counter to avoid duplicates
+    const messageIdCounter = useRef(0)
+    const generateMessageId = () => {
+        messageIdCounter.current += 1
+        return `msg_${Date.now()}_${messageIdCounter.current}`
+    }
 
     const [apiResults, setApiResults] = useState<string | ApiResult | null>(
         null
@@ -231,18 +258,23 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     // Language 확장 state
     const [showAllLanguages, setShowAllLanguages] = useState(false)
 
+    // Modal state for replacing alert/confirm
+    const [modalConfig, setModalConfig] = useState<ModalConfig>({
+        show: false,
+        title: "",
+        message: "",
+        type: "alert",
+    })
+
     const isStatic = useIsStaticRenderer()
 
-    // [FIX 1] window resize 감지
+    // Window resize listener
     useEffect(() => {
         if (typeof window === "undefined") return
 
         const handleResize = () => {
             setWindowWidth(window.innerWidth)
         }
-
-        // 초기값 설정
-        setWindowWidth(window.innerWidth)
 
         window.addEventListener("resize", handleResize)
         return () => window.removeEventListener("resize", handleResize)
@@ -370,10 +402,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             sessionStorage.setItem("ideaGenerator_state", JSON.stringify(state))
         } catch (e) {
             console.error("Failed to save state:", e)
-            // [FIX 8] 사용자에게 알림
-            alert(
-                "Failed to auto-save your progress. Please check your browser storage settings."
-            )
+            setModalConfig({
+                show: true,
+                title: "Auto-save Failed",
+                message: "Failed to auto-save your progress. Please check your browser storage settings.",
+                type: "alert",
+                onConfirm: () => setModalConfig(prev => ({ ...prev, show: false })),
+            })
         }
     }, [
         isExpanded,
@@ -417,8 +452,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             }
         } catch (e) {
             console.error("Failed to restore state:", e)
-            // [FIX 8] 사용자에게 알림
-            alert("Failed to restore your previous session. Starting fresh.")
+            setModalConfig({
+                show: true,
+                title: "Restore Failed",
+                message: "Failed to restore your previous session. Starting fresh.",
+                type: "alert",
+                onConfirm: () => setModalConfig(prev => ({ ...prev, show: false })),
+            })
         }
     }, [isExpanded])
 
@@ -811,13 +851,26 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     )
                 const decoder = new TextDecoder()
                 let acc = ""
+                let updateScheduled = false
+
                 while (true) {
                     const { value, done } = await reader.read()
                     if (done) break
                     acc += decoder.decode(value, { stream: true })
-                    setApiResults(acc)
-                    setLoadingProgress((prev) => Math.min(prev + 1, 95))
+
+                    // Batch updates to avoid excessive re-renders
+                    if (!updateScheduled) {
+                        updateScheduled = true
+                        setTimeout(() => {
+                            setApiResults(acc)
+                            setLoadingProgress((prev) => Math.min(prev + 1.5, 95))
+                            updateScheduled = false
+                        }, 100) // Update every 100ms max
+                    }
                 }
+
+                // Final update with complete data
+                setApiResults(acc)
                 const final = normalizeResult(safeJsonParse(acc.trim()))
                 setApiResults(final)
                 setLoadingProgress(100)
@@ -881,10 +934,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 )
             }
 
+            // Keep last 50 messages to avoid memory issues with long conversations
             setChatMessages((prev) => [
                 ...prev.slice(-49),
                 {
-                    id: Date.now().toString(),
+                    id: generateMessageId(),
                     type: "user",
                     content: response,
                     timestamp: Date.now(),
@@ -893,7 +947,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setUserInput("")
             setIsTyping(true)
 
-            setTimeout(async () => {
+            const timeoutId = setTimeout(async () => {
                 const nextQ = await fetchNextQuestion()
 
                 if (nextQ.question) {
@@ -902,10 +956,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         setChatMessages((prev) => [
                             ...prev,
                             {
-                                id: (Date.now() + 1).toString(),
+                                id: generateMessageId(),
                                 type: "ai",
                                 content: cleanedQuestion,
-                                options: nextQ.options || [],
+                                options: (nextQ.options || []).filter(opt => opt != null && opt !== ''),
                                 timestamp: Date.now(),
                             },
                         ])
@@ -915,7 +969,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         setChatMessages((prev) => [
                             ...prev,
                             {
-                                id: (Date.now() + 1).toString(),
+                                id: generateMessageId(),
                                 type: "ai",
                                 content: "Great! Generating the final script…",
                                 timestamp: Date.now(),
@@ -925,6 +979,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     })
                 }
             }, TIMINGS.CHAT_RESPONSE_DELAY)
+
+            // Return cleanup function
+            return () => clearTimeout(timeoutId)
         },
         [fetchNextQuestion, typeMessage, cleanTextForTyping]
     )
@@ -1007,13 +1064,26 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     )
                 const decoder = new TextDecoder()
                 let acc = ""
+                let updateScheduled = false
+
                 while (true) {
                     const { value, done } = await reader.read()
                     if (done) break
                     acc += decoder.decode(value, { stream: true })
-                    setApiResults(acc)
-                    setLoadingProgress((prev) => Math.min(prev + 1, 95))
+
+                    // Batch updates to avoid excessive re-renders
+                    if (!updateScheduled) {
+                        updateScheduled = true
+                        setTimeout(() => {
+                            setApiResults(acc)
+                            setLoadingProgress((prev) => Math.min(prev + 1.5, 95))
+                            updateScheduled = false
+                        }, 100) // Update every 100ms max
+                    }
                 }
+
+                // Final update with complete data
+                setApiResults(acc)
                 const final = normalizeResult(safeJsonParse(acc.trim()))
                 setApiResults(final)
                 setLoadingProgress(100)
@@ -1051,25 +1121,37 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     }, [currentStep, apiResults, isLoading])
 
     useEffect(() => {
+        let isMounted = true
+
         if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading) {
             setIsLoading(true)
             fetchNextQuestion().then((firstQ) => {
+                if (!isMounted) return // Don't update if unmounted
+
                 if (firstQ.question) {
                     const cleanedQuestion = cleanTextForTyping(firstQ.question)
                     typeMessage(cleanedQuestion, () => {
+                        if (!isMounted) return // Don't update if unmounted
+
                         setChatMessages([
                             {
-                                id: Date.now().toString(),
+                                id: generateMessageId(),
                                 type: "ai",
                                 content: cleanedQuestion,
-                                options: firstQ.options || [],
+                                options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
                                 timestamp: Date.now(),
                             },
                         ])
                     })
                 }
-                setIsLoading(false)
+                if (isMounted) {
+                    setIsLoading(false)
+                }
             })
+        }
+
+        return () => {
+            isMounted = false
         }
     }, [
         currentStep,
@@ -1172,7 +1254,12 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         if (typeof apiResults === "string") {
             content = editedScript || apiResults
         } else {
-            content = JSON.stringify(apiResults, null, 2)
+            try {
+                content = JSON.stringify(apiResults, null, 2)
+            } catch (e) {
+                console.error("JSON serialization error:", e)
+                content = String(apiResults)
+            }
         }
 
         const blob = new Blob([content], { type: "text/plain" })
@@ -1509,13 +1596,35 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         }, [hoverTimeout])
 
         const parseScriptLine = (line: string) => {
-            const timestampMatch = line.match(/^\[(\d+\.?\d*)-(\d+\.?\d*)\]/)
-            if (timestampMatch) {
-                return {
-                    start: parseFloat(timestampMatch[1]),
-                    end: parseFloat(timestampMatch[2]),
-                    timestamp: timestampMatch[0],
-                    text: line.substring(timestampMatch[0].length).trim(),
+            // Support multiple timestamp formats:
+            // [0.0-5.0], [0:00-0:05], (0.0-5.0)
+            const formats = [
+                /^\[(\d+\.?\d*)-(\d+\.?\d*)\]/,  // [0.0-5.0]
+                /^\[(\d+):(\d+)-(\d+):(\d+)\]/,  // [0:00-1:30]
+                /^\((\d+\.?\d*)-(\d+\.?\d*)\)/,  // (0.0-5.0)
+            ]
+
+            for (const regex of formats) {
+                const match = line.match(regex)
+                if (match) {
+                    let start, end, timestamp
+                    if (match.length === 3) {
+                        // Simple decimal format
+                        start = parseFloat(match[1])
+                        end = parseFloat(match[2])
+                        timestamp = match[0]
+                    } else if (match.length === 5) {
+                        // MM:SS format
+                        start = parseInt(match[1]) * 60 + parseInt(match[2])
+                        end = parseInt(match[3]) * 60 + parseInt(match[4])
+                        timestamp = match[0]
+                    }
+                    return {
+                        start,
+                        end,
+                        timestamp,
+                        text: line.substring(timestamp.length).trim(),
+                    }
                 }
             }
             return null
@@ -1633,8 +1742,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
             if (type === "transition") {
                 return (
-                    <span
+                    <motion.span
                         key={`transition-${index}`}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
                         style={{
                             ...iconStyle,
                             backgroundColor: "#3b82f6",
@@ -1642,11 +1753,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             border: "2px solid #1e40af",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = "scale(1.15)"
                             handleMouseEnter(e, type, content)
                         }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = "scale(1)"
+                        onMouseLeave={() => {
                             handleMouseLeave()
                         }}
                         title="Transition"
@@ -1654,12 +1763,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         aria-label="View transition details"
                     >
                         T
-                    </span>
+                    </motion.span>
                 )
             } else if (type === "broll") {
                 return (
-                    <span
+                    <motion.span
                         key={`broll-${index}`}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
                         style={{
                             ...iconStyle,
                             backgroundColor: "#10b981",
@@ -1667,11 +1778,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             border: "2px solid #047857",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = "scale(1.15)"
                             handleMouseEnter(e, type, content)
                         }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = "scale(1)"
+                        onMouseLeave={() => {
                             handleMouseLeave()
                         }}
                         title="B-Roll"
@@ -2283,9 +2392,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         return null
     }
 
-    // [FIX 6] handleKeyDown 최적화 - 핵심 의존성만 포함
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
+    // [FIX 6] handleKeyDown 최적화 - useRef로 state 접근하여 재등록 방지
+    useEffect(() => {
+        if (isStatic || typeof window === "undefined") return
+
+        const handleKeyDown = (e: KeyboardEvent) => {
             if (showSkipConfirm) return
 
             const activeElement = document.activeElement as HTMLElement | null
@@ -2367,34 +2478,58 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                 e.preventDefault()
                 copyToClipboard()
             }
-        },
-        [
-            showSkipConfirm,
-            isExpanded,
-            currentStep,
-            isEditMode,
-            showSidePanel,
-            showMoreActions,
-            userInput,
-            apiResults,
-        ]
-    )
-
-    useEffect(() => {
-        if (!isStatic && typeof window !== "undefined") {
-            document.addEventListener("keydown", handleKeyDown)
-            return () => document.removeEventListener("keydown", handleKeyDown)
         }
-    }, [handleKeyDown, isStatic])
+
+        document.addEventListener("keydown", handleKeyDown)
+        return () => document.removeEventListener("keydown", handleKeyDown)
+        // Note: Intentionally using all dependencies to keep handler updated
+        // This is necessary for keyboard shortcuts to work correctly with current state
+    }, [
+        showSkipConfirm,
+        isExpanded,
+        currentStep,
+        isEditMode,
+        showSidePanel,
+        showMoreActions,
+        userInput,
+        apiResults,
+        isStatic,
+    ])
 
     const handleExpand = () => startTransition(() => setIsExpanded(true))
 
     const handleCollapse = () => {
         if (hasUnsavedChanges || (currentStep as number) > 1) {
-            const confirmClose = window.confirm(
-                "You have unsaved work. Close anyway?"
-            )
-            if (!confirmClose) return
+            setModalConfig({
+                show: true,
+                title: "Unsaved Work",
+                message: "You have unsaved work. Close anyway?",
+                type: "confirm",
+                onConfirm: () => {
+                    setModalConfig(prev => ({ ...prev, show: false }))
+                    startTransition(() => {
+                        setIsExpanded(false)
+                        setCurrentStep(1)
+                        setSelectedStyle("")
+                        setCustomStyleName("")
+                        setBroadTopic("")
+                        setKeyword("")
+                        setApiResults(null)
+                        setEditedScript("")
+                        setRegenerateRequest("")
+                        setChatMessages([])
+                        setUserInput("")
+                        setHasUnsavedChanges(false)
+                        try {
+                            sessionStorage.removeItem("ideaGenerator_state")
+                        } catch (e) {
+                            console.warn("Failed to clear session storage:", e)
+                        }
+                    })
+                },
+                onCancel: () => setModalConfig(prev => ({ ...prev, show: false })),
+            })
+            return
         }
 
         startTransition(() => {
@@ -2646,7 +2781,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 rotate: 0,
                             }}
                             animate={{
-                                y: windowWidth + 20,
+                                y: (typeof window !== "undefined" ? window.innerHeight : 800) + 20,
                                 rotate: 360 * (Math.random() > 0.5 ? 1 : -1),
                                 x: Math.random() * windowWidth,
                             }}
@@ -2702,10 +2837,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 maxWidth: "34.375rem",
                                 height: "2.625rem",
                                 padding: "0 1.125rem",
-                                backgroundColor: "#27272a",
-                                border: "1.5px solid #3f3f46",
+                                backgroundColor: cardColor,
+                                border: `1.5px solid ${accentColor}`,
                                 borderRadius: "0.75rem",
-                                color: "#ffffff",
+                                color: textColor,
                                 ...bodyFont,
                                 fontSize: "1rem",
                                 outline: `2px solid ${primaryColor}`,
@@ -2713,12 +2848,12 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 transition: "all 0.2s ease",
                             }}
                             onFocus={(e) => {
-                                e.target.style.borderColor = "#52525b"
+                                e.target.style.borderColor = primaryColor
                                 e.target.style.boxShadow =
-                                    "0 0 0 3px rgba(82,82,91,0.15)"
+                                    `0 0 0 3px ${primaryColor}25`
                             }}
                             onBlur={(e) => {
-                                e.target.style.borderColor = "#3f3f46"
+                                e.target.style.borderColor = accentColor
                                 e.target.style.boxShadow = "none"
                             }}
                             aria-label="Enter topic"
@@ -2742,7 +2877,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.backgroundColor =
-                                    "#f4f4f5"
+                                    "#e5e5e5"
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor =
@@ -2801,11 +2936,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                 transition: "all 0.2s ease",
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${textColor}30`
+                                e.currentTarget.style.backgroundColor = `${textColor}15`
+                                e.currentTarget.style.transform = "scale(1.05)"
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor =
                                     cardColor
+                                e.currentTarget.style.transform = "scale(1)"
                             }}
                             aria-label="Close generator"
                         >
@@ -2913,7 +3050,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                     textAlign: "center",
                                 }}
                             >
-                                Step {currentStep} of 4
+                                Step {currentStep === 3.5 ? "3.5" : currentStep} of 4
                             </div>
                         </div>
 
@@ -3956,7 +4093,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 backgroundColor:
                                                                     ctaInclusion
                                                                         ? primaryColor
-                                                                        : `${textColor}25`,
+                                                                        : `${textColor}40`,
                                                                 display: "flex",
                                                                 alignItems:
                                                                     "center",
@@ -3965,6 +4102,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 cursor: "pointer",
                                                                 transition:
                                                                     "all 0.3s ease",
+                                                            }}
+                                                            whileHover={{
+                                                                scale: 1.05,
                                                             }}
                                                             whileTap={{
                                                                 scale: 0.95,
@@ -4647,7 +4787,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                                         "0.625rem",
                                                                                 }}
                                                                             >
-                                                                                {msg.options.map(
+                                                                                {msg.options?.map(
                                                                                     (
                                                                                         opt
                                                                                     ) => (
@@ -6061,6 +6201,123 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         )}
                     </motion.div>
                 )}
+
+                {/* Custom Modal to replace alert/confirm */}
+                <AnimatePresence>
+                    {modalConfig.show && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            style={{
+                                position: "fixed",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                zIndex: 10000,
+                            }}
+                            onClick={() => {
+                                if (modalConfig.type === "alert") {
+                                    modalConfig.onConfirm?.()
+                                } else {
+                                    modalConfig.onCancel?.()
+                                }
+                            }}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    backgroundColor: cardColor,
+                                    borderRadius: "1rem",
+                                    padding: "1.5rem",
+                                    maxWidth: "28rem",
+                                    width: "90%",
+                                    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                                    border: `1px solid ${accentColor}`,
+                                }}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="modal-title"
+                                aria-describedby="modal-description"
+                            >
+                                <h2
+                                    id="modal-title"
+                                    style={{
+                                        ...headingFont,
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: textColor,
+                                        marginBottom: "0.75rem",
+                                    }}
+                                >
+                                    {modalConfig.title}
+                                </h2>
+                                <p
+                                    id="modal-description"
+                                    style={{
+                                        ...bodyFont,
+                                        fontSize: "0.9375rem",
+                                        color: textColor,
+                                        marginBottom: "1.5rem",
+                                        lineHeight: "1.5",
+                                    }}
+                                >
+                                    {modalConfig.message}
+                                </p>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "0.75rem",
+                                        justifyContent: "flex-end",
+                                    }}
+                                >
+                                    {modalConfig.type === "confirm" && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            onClick={modalConfig.onCancel}
+                                            style={{
+                                                padding: "0.625rem 1.25rem",
+                                                borderRadius: "0.5rem",
+                                                ...BUTTON_STYLES.base,
+                                                ...BUTTON_STYLES.secondary(cardColor, textColor),
+                                                ...buttonFont,
+                                                fontSize: "0.875rem",
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                    )}
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={modalConfig.onConfirm}
+                                        style={{
+                                            padding: "0.625rem 1.25rem",
+                                            borderRadius: "0.5rem",
+                                            ...BUTTON_STYLES.base,
+                                            ...BUTTON_STYLES.primary(primaryColor, textOnPrimary),
+                                            ...buttonFont,
+                                            fontSize: "0.875rem",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {modalConfig.type === "confirm" ? "Confirm" : "OK"}
+                                    </motion.button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </AnimatePresence>
         </div>
     )
