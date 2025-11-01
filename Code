@@ -738,13 +738,44 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const data = await res.json()
 
-            // Clean question field from backend response
-            if (data && data.question && typeof data.question === 'string') {
-                data.question = data.question
+            // Debug: Log raw backend response
+            console.log('[fetchNextQuestion] Raw backend response:', JSON.stringify(data))
+
+            // Clean question field from backend response - AGGRESSIVE cleaning
+            if (data && data.question) {
+                const original = data.question
+
+                // Convert to string if needed
+                let cleaned = typeof data.question === 'string'
+                    ? data.question
+                    : String(data.question || '')
+
+                // Remove all variations of undefined/null
+                cleaned = cleaned
                     .replace(/undefined/gi, '')
                     .replace(/null/gi, '')
+                    .replace(/\bundefined\b/gi, '')
+                    .replace(/\bnull\b/gi, '')
                     .replace(/\s+/g, ' ')
                     .trim()
+
+                // If the question ends with just whitespace or punctuation after undefined, clean it
+                cleaned = cleaned.replace(/[?\s]+$/, '').trim() + (cleaned.includes('?') ? '' : '?')
+
+                data.question = cleaned
+
+                console.log('[fetchNextQuestion] Cleaned question:', {
+                    original,
+                    cleaned,
+                    hadUndefined: original.includes('undefined')
+                })
+            }
+
+            // Also clean options array
+            if (data && Array.isArray(data.options)) {
+                data.options = data.options
+                    .map(opt => String(opt || '').replace(/undefined/gi, '').replace(/null/gi, '').trim())
+                    .filter(Boolean)
             }
 
             return data
@@ -1170,7 +1201,21 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     }
 
                     if (firstQ && firstQ.question && firstQ.question.trim()) {
-                        const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                        // Additional cleaning before passing to cleanTextForTyping
+                        const preClean = String(firstQ.question || '')
+                            .replace(/undefined/gi, '')
+                            .replace(/null/gi, '')
+                            .trim()
+
+                        const cleanedQuestion = cleanTextForTyping(preClean)
+
+                        console.log('[Step 3.5] Question cleaning pipeline:', {
+                            original: firstQ.question,
+                            preClean,
+                            cleanedQuestion,
+                            hadUndefined: String(firstQ.question).includes('undefined')
+                        })
+
                         console.log('[Step 3.5] Starting typeMessage animation')
                         typeMessage(cleanedQuestion, () => {
                             console.log('[Step 3.5] TypeMessage callback called, isMounted:', isMounted)
