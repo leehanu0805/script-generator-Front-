@@ -4223,13 +4223,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                 }}
                                             >
                                                 {Array.from({
-                                                    length: Math.max(
-                                                        3,
-                                                        chatMessages.filter(
-                                                            (m) =>
-                                                                m.type === "ai"
-                                                        ).length
-                                                    ),
+                                                    length: chatMessages.filter(
+                                                        (m) => m.type === "ai"
+                                                    ).length,
                                                 }).map((_, index) => {
                                                     const step = index + 1
                                                     const userAnswers =
@@ -4300,14 +4296,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 }
                                                                 aria-valuemax={
-                                                                    Math.max(
-                                                                        3,
-                                                                        chatMessages.filter(
-                                                                            (m) =>
-                                                                                m.type ===
-                                                                                "ai"
-                                                                        ).length
-                                                                    )
+                                                                    chatMessages.filter(
+                                                                        (m) =>
+                                                                            m.type === "ai"
+                                                                    ).length
                                                                 }
                                                             >
                                                                 {isComplete ? (
@@ -4372,7 +4364,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 "user"
                                                         ).length
                                                     }
-                                                    /3
+                                                    /
+                                                    {
+                                                        chatMessages.filter(
+                                                            (m) =>
+                                                                m.type === "ai"
+                                                        ).length
+                                                    }
                                                 </div>
                                             </div>
                                         )}
