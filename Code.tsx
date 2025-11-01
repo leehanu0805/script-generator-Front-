@@ -1133,8 +1133,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     useEffect(() => {
         let isMounted = true
 
-        // Only fetch once per step 3.5 entry
-        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading && !hasAttemptedQuestionFetch.current) {
+        // Only fetch once per step 3.5 entry - ref prevents duplicate calls
+        if (currentStep === 3.5 && !hasAttemptedQuestionFetch.current) {
             console.log('[Step 3.5] Starting question fetch...')
             hasAttemptedQuestionFetch.current = true
             setIsLoading(true)
@@ -1208,8 +1208,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             console.log('[Step 3.5] Cleanup called')
             isMounted = false
         }
+        // Only depend on currentStep - ref prevents re-execution
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentStep, chatMessages.length, isLoading])
+    }, [currentStep])
 
     useEffect(() => {
         if (chatScrollRef.current) {
