@@ -8,8 +8,7 @@ import {
     useMemo,
     type CSSProperties,
 } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
+import { addPropertyControls, ControlType, useIsStaticRenderer, motion, AnimatePresence } from "framer"
 
 // Z-INDEX 체계화
 const Z_INDEX = {
@@ -211,6 +210,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const [isTyping, setIsTyping] = useState(false)
     const [skipRefinement, setSkipRefinement] = useState(false)
     const [showSkipConfirm, setShowSkipConfirm] = useState(false)
+    const [questionFetchFailed, setQuestionFetchFailed] = useState(false)
+    const hasAttemptedQuestionFetch = useRef(false)
     const chatScrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -626,6 +627,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const typeMessage = useCallback(
         (text: string, callback: () => void) => {
             const cleanText = cleanTextForTyping(text)
+            console.log('[typeMessage] Starting typing:', { original: text, cleaned: cleanText, length: cleanText.length })
+
+            if (!cleanText || cleanText.length === 0) {
+                console.warn('[typeMessage] Empty text, calling callback immediately')
+                callback()
+                return () => {}
+            }
+
             setTypingText("")
             setIsTyping(true)
             let index = 0
@@ -645,6 +654,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         TIMINGS.CHAR_TYPING
                     )
                 } else {
+                    console.log('[typeMessage] Typing complete, calling callback')
                     setIsTyping(false)
                     typingTimeoutRef.current = null
                     callback()
@@ -1123,44 +1133,84 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     useEffect(() => {
         let isMounted = true
 
-        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading) {
+        // Only fetch once per step 3.5 entry - ref prevents duplicate calls
+        if (currentStep === 3.5 && !hasAttemptedQuestionFetch.current) {
+            console.log('[Step 3.5] Starting question fetch...')
+            hasAttemptedQuestionFetch.current = true
             setIsLoading(true)
-            fetchNextQuestion().then((firstQ) => {
-                if (!isMounted) return // Don't update if unmounted
 
-                if (firstQ.question) {
-                    const cleanedQuestion = cleanTextForTyping(firstQ.question)
-                    typeMessage(cleanedQuestion, () => {
-                        if (!isMounted) return // Don't update if unmounted
+            fetchNextQuestion()
+                .then((firstQ) => {
+                    console.log('[Step 3.5] Question fetch response:', firstQ)
+                    if (!isMounted) {
+                        console.warn('[Step 3.5] Component unmounted, aborting')
+                        return
+                    }
 
+                    if (firstQ && firstQ.question && firstQ.question.trim()) {
+                        const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                        console.log('[Step 3.5] Starting typeMessage animation')
+                        typeMessage(cleanedQuestion, () => {
+                            console.log('[Step 3.5] TypeMessage callback called, isMounted:', isMounted)
+                            if (!isMounted) return
+
+                            console.log('[Step 3.5] Setting chat messages and stopping loading')
+                            setChatMessages([
+                                {
+                                    id: generateMessageId(),
+                                    type: "ai",
+                                    content: cleanedQuestion,
+                                    options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
+                                    timestamp: Date.now(),
+                                },
+                            ])
+                            if (isMounted) {
+                                setIsLoading(false)
+                                console.log('[Step 3.5] Loading complete!')
+                            }
+                        })
+                    } else {
+                        console.warn('[Step 3.5] No valid question received')
+                        if (isMounted) {
+                            setIsLoading(false)
+                            setQuestionFetchFailed(true)
+                            setChatMessages([
+                                {
+                                    id: generateMessageId(),
+                                    type: "ai",
+                                    content: "Unable to generate refinement questions. You can skip this step.",
+                                    options: [],
+                                    timestamp: Date.now(),
+                                },
+                            ])
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error('[Step 3.5] Question fetch error:', error)
+                    if (isMounted) {
+                        setIsLoading(false)
+                        setQuestionFetchFailed(true)
                         setChatMessages([
                             {
                                 id: generateMessageId(),
                                 type: "ai",
-                                content: cleanedQuestion,
-                                options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
+                                content: "Error loading questions. Please skip this step to continue.",
+                                options: [],
                                 timestamp: Date.now(),
                             },
                         ])
-                    })
-                }
-                if (isMounted) {
-                    setIsLoading(false)
-                }
-            })
+                    }
+                })
         }
 
         return () => {
+            console.log('[Step 3.5] Cleanup called')
             isMounted = false
         }
-    }, [
-        currentStep,
-        chatMessages.length,
-        isLoading,
-        fetchNextQuestion,
-        typeMessage,
-        cleanTextForTyping,
-    ])
+        // Only depend on currentStep - ref prevents re-execution
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep])
 
     useEffect(() => {
         if (chatScrollRef.current) {
@@ -1276,6 +1326,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const handleNext = () => {
         if (currentStep === 3) {
             setCurrentStep(3.5)
+            setQuestionFetchFailed(false)
+            hasAttemptedQuestionFetch.current = false
         } else if ((currentStep as number) < 4 && currentStep !== 3.5) {
             startTransition(() => setCurrentStep((currentStep + 1) as Step))
         }
@@ -1286,6 +1338,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setCurrentStep(3)
             setChatMessages([])
             setSkipRefinement(false)
+            setQuestionFetchFailed(false)
+            hasAttemptedQuestionFetch.current = false
         } else if ((currentStep as number) > 1) {
             startTransition(() => setCurrentStep((currentStep - 1) as Step))
         }
@@ -1788,7 +1842,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         aria-label="View B-Roll details"
                     >
                         B
-                    </span>
+                    </motion.span>
                 )
             }
             return null
@@ -3116,13 +3170,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         selectedStyle ===
                                                         style.id
                                                     const bgColor = isSelected
-                                                        ? accentColor
+                                                        ? primaryColor
                                                         : cardColor
                                                     const cardTextColor =
                                                         isSelected
-                                                            ? getReadableTextOn(
-                                                                  accentColor
-                                                              )
+                                                            ? textOnPrimary
                                                             : textColor
 
                                                     return (
@@ -3146,14 +3198,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 backgroundColor:
                                                                     bgColor,
                                                                 border: isSelected
-                                                                    ? `2px solid ${primaryColor}`
-                                                                    : "2px solid transparent",
+                                                                    ? `3px solid #FFFFFF`
+                                                                    : `2px solid ${accentColor}`,
                                                                 borderRadius:
                                                                     "0.75rem",
                                                                 ...BUTTON_STYLES.base,
                                                                 boxShadow:
                                                                     isSelected
-                                                                        ? `0 4px 16px ${primaryColor}25`
+                                                                        ? `0 8px 24px ${primaryColor}40`
                                                                         : "none",
                                                                 textAlign:
                                                                     "left",
@@ -3223,19 +3275,19 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     backgroundColor:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? accentColor
+                                                            ? primaryColor
                                                             : cardColor,
                                                     border:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? `2px solid ${primaryColor}`
-                                                            : "2px solid transparent",
+                                                            ? `3px solid #FFFFFF`
+                                                            : `2px solid ${accentColor}`,
                                                     borderRadius: "0.75rem",
                                                     ...BUTTON_STYLES.base,
                                                     boxShadow:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? `0 4px 16px ${primaryColor}25`
+                                                            ? `0 8px 24px ${primaryColor}40`
                                                             : "none",
                                                     textAlign: "left",
                                                 }}
@@ -3252,9 +3304,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         color:
                                                             selectedStyle ===
                                                             "other"
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor,
                                                         marginBottom: "0.5rem",
                                                         fontWeight: 700,
@@ -3269,9 +3319,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         color:
                                                             selectedStyle ===
                                                             "other"
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor,
                                                         opacity: 0.75,
                                                         lineHeight: 1.4,
@@ -3663,15 +3711,16 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                                         ? `0 4px 16px ${primaryColor}35`
                                                                                         : "none",
                                                                             }}
-                                                                            aria-label={`${seg < 60 ? `${seg} seconds` : `${Math.floor(seg / 60)} minute${Math.floor(seg / 60) > 1 ? "s" : ""}`} select`}
+                                                                            aria-label={`${seg < 60 ? `${seg} seconds` : `${Math.floor(seg / 60)} minute${Math.floor(seg / 60) > 1 ? "s" : ""}${seg % 60 > 0 ? ` ${seg % 60} seconds` : ""}`} select`}
                                                                             aria-pressed={
                                                                                 isSelected
                                                                             }
                                                                         >
-                                                                            {seg <
-                                                                            60
+                                                                            {seg < 60
                                                                                 ? `${seg}s`
-                                                                                : `${Math.floor(seg / 60)}m`}
+                                                                                : seg % 60 === 0
+                                                                                ? `${Math.floor(seg / 60)}m`
+                                                                                : `${Math.floor(seg / 60)}m ${seg % 60}s`}
                                                                         </motion.button>
                                                                     )
                                                                 }
@@ -3778,13 +3827,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             tone.value
                                                         const bgColor =
                                                             isSelected
-                                                                ? accentColor
+                                                                ? primaryColor
                                                                 : cardColor
                                                         const toneTextColor =
                                                             isSelected
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor
                                                         return (
                                                             <motion.button
@@ -3807,7 +3854,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     backgroundColor:
                                                                         bgColor,
                                                                     border: isSelected
-                                                                        ? `2px solid ${primaryColor}`
+                                                                        ? `3px solid #FFFFFF`
                                                                         : `2px solid ${accentColor}`,
                                                                     borderRadius:
                                                                         "0.625rem",
@@ -3821,7 +3868,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     gap: "0.375rem",
                                                                     boxShadow:
                                                                         isSelected
-                                                                            ? `0 4px 16px ${primaryColor}25`
+                                                                            ? `0 8px 24px ${primaryColor}40`
                                                                             : "none",
                                                                 }}
                                                                 aria-label={`Select ${tone.value} tone`}
@@ -3894,13 +3941,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             lang.name
                                                         const bgColor =
                                                             isSelected
-                                                                ? accentColor
+                                                                ? primaryColor
                                                                 : cardColor
                                                         const langTextColor =
                                                             isSelected
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor
                                                         return (
                                                             <motion.button
@@ -3923,7 +3968,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     backgroundColor:
                                                                         bgColor,
                                                                     border: isSelected
-                                                                        ? `2px solid ${primaryColor}`
+                                                                        ? `3px solid #FFFFFF`
                                                                         : `2px solid ${accentColor}`,
                                                                     borderRadius:
                                                                         "0.625rem",
@@ -3937,7 +3982,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     gap: "0.25rem",
                                                                     boxShadow:
                                                                         isSelected
-                                                                            ? `0 4px 16px ${primaryColor}25`
+                                                                            ? `0 8px 24px ${primaryColor}40`
                                                                             : "none",
                                                                 }}
                                                                 aria-label={`Select ${lang.name}`}
@@ -4223,13 +4268,9 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                 }}
                                             >
                                                 {Array.from({
-                                                    length: Math.max(
-                                                        3,
-                                                        chatMessages.filter(
-                                                            (m) =>
-                                                                m.type === "ai"
-                                                        ).length
-                                                    ),
+                                                    length: chatMessages.filter(
+                                                        (m) => m.type === "ai"
+                                                    ).length,
                                                 }).map((_, index) => {
                                                     const step = index + 1
                                                     const userAnswers =
@@ -4300,14 +4341,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     step
                                                                 }
                                                                 aria-valuemax={
-                                                                    Math.max(
-                                                                        3,
-                                                                        chatMessages.filter(
-                                                                            (m) =>
-                                                                                m.type ===
-                                                                                "ai"
-                                                                        ).length
-                                                                    )
+                                                                    chatMessages.filter(
+                                                                        (m) =>
+                                                                            m.type === "ai"
+                                                                    ).length
                                                                 }
                                                             >
                                                                 {isComplete ? (
@@ -4372,7 +4409,13 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 "user"
                                                         ).length
                                                     }
-                                                    /3
+                                                    /
+                                                    {
+                                                        chatMessages.filter(
+                                                            (m) =>
+                                                                m.type === "ai"
+                                                        ).length
+                                                    }
                                                 </div>
                                             </div>
                                         )}
