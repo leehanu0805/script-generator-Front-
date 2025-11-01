@@ -3662,15 +3662,16 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                                         ? `0 4px 16px ${primaryColor}35`
                                                                                         : "none",
                                                                             }}
-                                                                            aria-label={`${seg < 60 ? `${seg} seconds` : `${Math.floor(seg / 60)} minute${Math.floor(seg / 60) > 1 ? "s" : ""}`} select`}
+                                                                            aria-label={`${seg < 60 ? `${seg} seconds` : `${Math.floor(seg / 60)} minute${Math.floor(seg / 60) > 1 ? "s" : ""}${seg % 60 > 0 ? ` ${seg % 60} seconds` : ""}`} select`}
                                                                             aria-pressed={
                                                                                 isSelected
                                                                             }
                                                                         >
-                                                                            {seg <
-                                                                            60
+                                                                            {seg < 60
                                                                                 ? `${seg}s`
-                                                                                : `${Math.floor(seg / 60)}m`}
+                                                                                : seg % 60 === 0
+                                                                                ? `${Math.floor(seg / 60)}m`
+                                                                                : `${Math.floor(seg / 60)}m ${seg % 60}s`}
                                                                         </motion.button>
                                                                     )
                                                                 }
