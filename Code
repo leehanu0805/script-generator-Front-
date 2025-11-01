@@ -759,8 +759,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     .replace(/\s+/g, ' ')
                     .trim()
 
-                // If the question ends with just whitespace or punctuation after undefined, clean it
-                cleaned = cleaned.replace(/[?\s]+$/, '').trim() + (cleaned.includes('?') ? '' : '?')
+                // Preserve question mark if it exists, otherwise add it
+                if (!cleaned.endsWith('?')) {
+                    cleaned = cleaned + '?'
+                }
 
                 data.question = cleaned
 
