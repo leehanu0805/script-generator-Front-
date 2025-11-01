@@ -3127,13 +3127,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         selectedStyle ===
                                                         style.id
                                                     const bgColor = isSelected
-                                                        ? accentColor
+                                                        ? primaryColor
                                                         : cardColor
                                                     const cardTextColor =
                                                         isSelected
-                                                            ? getReadableTextOn(
-                                                                  accentColor
-                                                              )
+                                                            ? textOnPrimary
                                                             : textColor
 
                                                     return (
@@ -3157,14 +3155,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                 backgroundColor:
                                                                     bgColor,
                                                                 border: isSelected
-                                                                    ? `2px solid ${primaryColor}`
-                                                                    : "2px solid transparent",
+                                                                    ? `3px solid #FFFFFF`
+                                                                    : `2px solid ${accentColor}`,
                                                                 borderRadius:
                                                                     "0.75rem",
                                                                 ...BUTTON_STYLES.base,
                                                                 boxShadow:
                                                                     isSelected
-                                                                        ? `0 4px 16px ${primaryColor}25`
+                                                                        ? `0 8px 24px ${primaryColor}40`
                                                                         : "none",
                                                                 textAlign:
                                                                     "left",
@@ -3234,19 +3232,19 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                     backgroundColor:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? accentColor
+                                                            ? primaryColor
                                                             : cardColor,
                                                     border:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? `2px solid ${primaryColor}`
-                                                            : "2px solid transparent",
+                                                            ? `3px solid #FFFFFF`
+                                                            : `2px solid ${accentColor}`,
                                                     borderRadius: "0.75rem",
                                                     ...BUTTON_STYLES.base,
                                                     boxShadow:
                                                         selectedStyle ===
                                                         "other"
-                                                            ? `0 4px 16px ${primaryColor}25`
+                                                            ? `0 8px 24px ${primaryColor}40`
                                                             : "none",
                                                     textAlign: "left",
                                                 }}
@@ -3263,9 +3261,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         color:
                                                             selectedStyle ===
                                                             "other"
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor,
                                                         marginBottom: "0.5rem",
                                                         fontWeight: 700,
@@ -3280,9 +3276,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                         color:
                                                             selectedStyle ===
                                                             "other"
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor,
                                                         opacity: 0.75,
                                                         lineHeight: 1.4,
@@ -3790,13 +3784,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             tone.value
                                                         const bgColor =
                                                             isSelected
-                                                                ? accentColor
+                                                                ? primaryColor
                                                                 : cardColor
                                                         const toneTextColor =
                                                             isSelected
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor
                                                         return (
                                                             <motion.button
@@ -3819,7 +3811,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     backgroundColor:
                                                                         bgColor,
                                                                     border: isSelected
-                                                                        ? `2px solid ${primaryColor}`
+                                                                        ? `3px solid #FFFFFF`
                                                                         : `2px solid ${accentColor}`,
                                                                     borderRadius:
                                                                         "0.625rem",
@@ -3833,7 +3825,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     gap: "0.375rem",
                                                                     boxShadow:
                                                                         isSelected
-                                                                            ? `0 4px 16px ${primaryColor}25`
+                                                                            ? `0 8px 24px ${primaryColor}40`
                                                                             : "none",
                                                                 }}
                                                                 aria-label={`Select ${tone.value} tone`}
@@ -3906,13 +3898,11 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                             lang.name
                                                         const bgColor =
                                                             isSelected
-                                                                ? accentColor
+                                                                ? primaryColor
                                                                 : cardColor
                                                         const langTextColor =
                                                             isSelected
-                                                                ? getReadableTextOn(
-                                                                      accentColor
-                                                                  )
+                                                                ? textOnPrimary
                                                                 : textColor
                                                         return (
                                                             <motion.button
@@ -3935,7 +3925,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     backgroundColor:
                                                                         bgColor,
                                                                     border: isSelected
-                                                                        ? `2px solid ${primaryColor}`
+                                                                        ? `3px solid #FFFFFF`
                                                                         : `2px solid ${accentColor}`,
                                                                     borderRadius:
                                                                         "0.625rem",
@@ -3949,7 +3939,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                                                                     gap: "0.25rem",
                                                                     boxShadow:
                                                                         isSelected
-                                                                            ? `0 4px 16px ${primaryColor}25`
+                                                                            ? `0 8px 24px ${primaryColor}40`
                                                                             : "none",
                                                                 }}
                                                                 aria-label={`Select ${lang.name}`}
