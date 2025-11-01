@@ -210,6 +210,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const [isTyping, setIsTyping] = useState(false)
     const [skipRefinement, setSkipRefinement] = useState(false)
     const [showSkipConfirm, setShowSkipConfirm] = useState(false)
+    const [questionFetchFailed, setQuestionFetchFailed] = useState(false)
     const chatScrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -1122,13 +1123,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     useEffect(() => {
         let isMounted = true
 
-        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading) {
+        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading && !questionFetchFailed) {
             setIsLoading(true)
+            setQuestionFetchFailed(false)
             fetchNextQuestion()
                 .then((firstQ) => {
                     if (!isMounted) return // Don't update if unmounted
 
-                    if (firstQ.question) {
+                    if (firstQ && firstQ.question) {
                         const cleanedQuestion = cleanTextForTyping(firstQ.question)
                         typeMessage(cleanedQuestion, () => {
                             if (!isMounted) return // Don't update if unmounted
@@ -1147,9 +1149,20 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             }
                         })
                     } else {
-                        // No question received, set loading to false
+                        // No question received, mark as failed to prevent retry loop
                         if (isMounted) {
                             setIsLoading(false)
+                            setQuestionFetchFailed(true)
+                            // Add a placeholder message so user can skip
+                            setChatMessages([
+                                {
+                                    id: generateMessageId(),
+                                    type: "ai",
+                                    content: "Unable to generate refinement questions. You can skip this step.",
+                                    options: [],
+                                    timestamp: Date.now(),
+                                },
+                            ])
                         }
                     }
                 })
@@ -1157,6 +1170,17 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     console.error("Failed to fetch question:", error)
                     if (isMounted) {
                         setIsLoading(false)
+                        setQuestionFetchFailed(true)
+                        // Add error message so user can skip
+                        setChatMessages([
+                            {
+                                id: generateMessageId(),
+                                type: "ai",
+                                content: "Error loading questions. Please skip this step to continue.",
+                                options: [],
+                                timestamp: Date.now(),
+                            },
+                        ])
                     }
                 })
         }
@@ -1168,6 +1192,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         currentStep,
         chatMessages.length,
         isLoading,
+        questionFetchFailed,
         fetchNextQuestion,
         typeMessage,
         cleanTextForTyping,
@@ -1287,6 +1312,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const handleNext = () => {
         if (currentStep === 3) {
             setCurrentStep(3.5)
+            setQuestionFetchFailed(false)
         } else if ((currentStep as number) < 4 && currentStep !== 3.5) {
             startTransition(() => setCurrentStep((currentStep + 1) as Step))
         }
@@ -1297,6 +1323,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setCurrentStep(3)
             setChatMessages([])
             setSkipRefinement(false)
+            setQuestionFetchFailed(false)
         } else if ((currentStep as number) > 1) {
             startTransition(() => setCurrentStep((currentStep - 1) as Step))
         }
