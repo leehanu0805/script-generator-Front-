@@ -211,6 +211,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const [skipRefinement, setSkipRefinement] = useState(false)
     const [showSkipConfirm, setShowSkipConfirm] = useState(false)
     const [questionFetchFailed, setQuestionFetchFailed] = useState(false)
+    const hasAttemptedQuestionFetch = useRef(false)
     const chatScrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -1123,17 +1124,21 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     useEffect(() => {
         let isMounted = true
 
-        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading && !questionFetchFailed) {
+        // Only fetch once per step 3.5 entry
+        if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading && !hasAttemptedQuestionFetch.current) {
+            console.log('[Step 3.5] Starting question fetch...')
+            hasAttemptedQuestionFetch.current = true
             setIsLoading(true)
-            setQuestionFetchFailed(false)
+
             fetchNextQuestion()
                 .then((firstQ) => {
-                    if (!isMounted) return // Don't update if unmounted
+                    console.log('[Step 3.5] Question fetch response:', firstQ)
+                    if (!isMounted) return
 
-                    if (firstQ && firstQ.question) {
+                    if (firstQ && firstQ.question && firstQ.question.trim()) {
                         const cleanedQuestion = cleanTextForTyping(firstQ.question)
                         typeMessage(cleanedQuestion, () => {
-                            if (!isMounted) return // Don't update if unmounted
+                            if (!isMounted) return
 
                             setChatMessages([
                                 {
@@ -1149,11 +1154,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             }
                         })
                     } else {
-                        // No question received, mark as failed to prevent retry loop
+                        console.warn('[Step 3.5] No valid question received')
                         if (isMounted) {
                             setIsLoading(false)
                             setQuestionFetchFailed(true)
-                            // Add a placeholder message so user can skip
                             setChatMessages([
                                 {
                                     id: generateMessageId(),
@@ -1167,11 +1171,10 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                     }
                 })
                 .catch((error) => {
-                    console.error("Failed to fetch question:", error)
+                    console.error('[Step 3.5] Question fetch error:', error)
                     if (isMounted) {
                         setIsLoading(false)
                         setQuestionFetchFailed(true)
-                        // Add error message so user can skip
                         setChatMessages([
                             {
                                 id: generateMessageId(),
@@ -1192,7 +1195,6 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         currentStep,
         chatMessages.length,
         isLoading,
-        questionFetchFailed,
         fetchNextQuestion,
         typeMessage,
         cleanTextForTyping,
@@ -1313,6 +1315,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         if (currentStep === 3) {
             setCurrentStep(3.5)
             setQuestionFetchFailed(false)
+            hasAttemptedQuestionFetch.current = false
         } else if ((currentStep as number) < 4 && currentStep !== 3.5) {
             startTransition(() => setCurrentStep((currentStep + 1) as Step))
         }
@@ -1324,6 +1327,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             setChatMessages([])
             setSkipRefinement(false)
             setQuestionFetchFailed(false)
+            hasAttemptedQuestionFetch.current = false
         } else if ((currentStep as number) > 1) {
             startTransition(() => setCurrentStep((currentStep - 1) as Step))
         }
