@@ -1787,7 +1787,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         aria-label="View B-Roll details"
                     >
                         B
-                    </span>
+                    </motion.span>
                 )
             }
             return null
