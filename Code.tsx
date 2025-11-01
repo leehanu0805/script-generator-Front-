@@ -627,6 +627,14 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
     const typeMessage = useCallback(
         (text: string, callback: () => void) => {
             const cleanText = cleanTextForTyping(text)
+            console.log('[typeMessage] Starting typing:', { original: text, cleaned: cleanText, length: cleanText.length })
+
+            if (!cleanText || cleanText.length === 0) {
+                console.warn('[typeMessage] Empty text, calling callback immediately')
+                callback()
+                return () => {}
+            }
+
             setTypingText("")
             setIsTyping(true)
             let index = 0
@@ -646,6 +654,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                         TIMINGS.CHAR_TYPING
                     )
                 } else {
+                    console.log('[typeMessage] Typing complete, calling callback')
                     setIsTyping(false)
                     typingTimeoutRef.current = null
                     callback()
@@ -1133,13 +1142,19 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             fetchNextQuestion()
                 .then((firstQ) => {
                     console.log('[Step 3.5] Question fetch response:', firstQ)
-                    if (!isMounted) return
+                    if (!isMounted) {
+                        console.warn('[Step 3.5] Component unmounted, aborting')
+                        return
+                    }
 
                     if (firstQ && firstQ.question && firstQ.question.trim()) {
                         const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                        console.log('[Step 3.5] Starting typeMessage animation')
                         typeMessage(cleanedQuestion, () => {
+                            console.log('[Step 3.5] TypeMessage callback called, isMounted:', isMounted)
                             if (!isMounted) return
 
+                            console.log('[Step 3.5] Setting chat messages and stopping loading')
                             setChatMessages([
                                 {
                                     id: generateMessageId(),
@@ -1151,6 +1166,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
                             ])
                             if (isMounted) {
                                 setIsLoading(false)
+                                console.log('[Step 3.5] Loading complete!')
                             }
                         })
                     } else {
@@ -1189,6 +1205,7 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
         }
 
         return () => {
+            console.log('[Step 3.5] Cleanup called')
             isMounted = false
         }
     }, [
