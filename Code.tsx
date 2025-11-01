@@ -1124,29 +1124,41 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
 
         if (currentStep === 3.5 && chatMessages.length === 0 && !isLoading) {
             setIsLoading(true)
-            fetchNextQuestion().then((firstQ) => {
-                if (!isMounted) return // Don't update if unmounted
+            fetchNextQuestion()
+                .then((firstQ) => {
+                    if (!isMounted) return // Don't update if unmounted
 
-                if (firstQ.question) {
-                    const cleanedQuestion = cleanTextForTyping(firstQ.question)
-                    typeMessage(cleanedQuestion, () => {
-                        if (!isMounted) return // Don't update if unmounted
+                    if (firstQ.question) {
+                        const cleanedQuestion = cleanTextForTyping(firstQ.question)
+                        typeMessage(cleanedQuestion, () => {
+                            if (!isMounted) return // Don't update if unmounted
 
-                        setChatMessages([
-                            {
-                                id: generateMessageId(),
-                                type: "ai",
-                                content: cleanedQuestion,
-                                options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
-                                timestamp: Date.now(),
-                            },
-                        ])
-                    })
-                }
-                if (isMounted) {
-                    setIsLoading(false)
-                }
-            })
+                            setChatMessages([
+                                {
+                                    id: generateMessageId(),
+                                    type: "ai",
+                                    content: cleanedQuestion,
+                                    options: (firstQ.options || []).filter(opt => opt != null && opt !== ''),
+                                    timestamp: Date.now(),
+                                },
+                            ])
+                            if (isMounted) {
+                                setIsLoading(false)
+                            }
+                        })
+                    } else {
+                        // No question received, set loading to false
+                        if (isMounted) {
+                            setIsLoading(false)
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to fetch question:", error)
+                    if (isMounted) {
+                        setIsLoading(false)
+                    }
+                })
         }
 
         return () => {
