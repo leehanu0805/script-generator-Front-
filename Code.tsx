@@ -1208,14 +1208,8 @@ export default function IdeaGenerator(props: IdeaGeneratorProps) {
             console.log('[Step 3.5] Cleanup called')
             isMounted = false
         }
-    }, [
-        currentStep,
-        chatMessages.length,
-        isLoading,
-        fetchNextQuestion,
-        typeMessage,
-        cleanTextForTyping,
-    ])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep, chatMessages.length, isLoading])
 
     useEffect(() => {
         if (chatScrollRef.current) {
